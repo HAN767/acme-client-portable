@@ -90,3 +90,5 @@ struct httphead	*http_head_get(const char *,
 			struct httphead *, size_t);
 
 #endif /* HTTP_H */
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

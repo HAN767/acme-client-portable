@@ -310,3 +310,5 @@ checkexit_ext(int *rc, pid_t pid, enum comp comp)
 	}
 	return 1;
 }
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

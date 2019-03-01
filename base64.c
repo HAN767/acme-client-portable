@@ -65,3 +65,5 @@ base64buf_url(const char *data, size_t len)
 
 	return buf;
 }
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

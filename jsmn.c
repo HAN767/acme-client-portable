@@ -330,3 +330,4 @@ void jsmn_init(jsmn_parser *parser) {
 	parser->toksuper = -1;
 }
 
+/* vim: set noet ts=8 sts=8 sw=8 : */

@@ -80,3 +80,5 @@ struct domain_c		*domain_find(struct acme_conf *, char *);
 int			 domain_valid(const char *);
 
 #endif /* PARSE_H */
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

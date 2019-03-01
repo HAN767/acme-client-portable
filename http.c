@@ -734,3 +734,5 @@ http_get(const struct source *addrs, size_t addrsz, const char *domain,
 	g->http = h;
 	return g;
 }
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

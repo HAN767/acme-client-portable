@@ -346,3 +346,5 @@ out:
 	ERR_free_strings();
 	return rc;
 }
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

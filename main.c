@@ -421,3 +421,5 @@ usage:
 	    "usage: acme-client [-ADFnrv] [-f configfile] domain\n");
 	return EXIT_FAILURE;
 }
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

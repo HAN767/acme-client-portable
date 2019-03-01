@@ -261,3 +261,5 @@ enum comp	 proccomp;
 __END_DECLS
 
 #endif /* ! EXTERN_H */
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

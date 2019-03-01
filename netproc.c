@@ -816,3 +816,5 @@ out:
 	json_free_capaths(&paths);
 	return rc;
 }
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

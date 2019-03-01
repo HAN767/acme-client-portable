@@ -86,3 +86,5 @@ rsa_key_load(FILE *f, const char *fname)
 	EVP_PKEY_free(pkey);
 	return NULL;
 }
+
+/* vim: set noet ts=8 sts=8 sw=8 : */
