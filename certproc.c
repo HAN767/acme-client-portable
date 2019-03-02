@@ -26,6 +26,7 @@
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
 
+#include "compat.h"
 #include "extern.h"
 
 #define MARKER "-----BEGIN CERTIFICATE-----"

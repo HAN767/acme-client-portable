@@ -23,6 +23,7 @@ acme_client_SOURCES = \
 	base64.c \
 	certproc.c \
 	chngproc.c \
+	compat.c \
 	dbg.c \
 	dnsproc.c \
 	fileproc.c \

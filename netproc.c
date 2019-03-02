@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <tls.h>
 
+#include "compat.h"
 #include "http.h"
 #include "extern.h"
 #include "parse.h"

@@ -29,6 +29,7 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
+#include "compat.h"
 #include "extern.h"
 #include "rsa.h"
 

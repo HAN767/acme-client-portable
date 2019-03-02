@@ -28,6 +28,7 @@
 #include <openssl/rand.h>
 #include <openssl/err.h>
 
+#include "compat.h"
 #include "extern.h"
 #include "rsa.h"
 
