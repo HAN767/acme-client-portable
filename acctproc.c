@@ -74,18 +74,31 @@ bn2string(const BIGNUM *bn)
 static char *
 op_thumb_rsa(EVP_PKEY *pkey)
 {
+	BIGNUM const *n, *e;
 	char	*exp = NULL, *mod = NULL, *json = NULL;
 	RSA	*r;
 
-	if ((r = EVP_PKEY_get1_RSA(pkey)) == NULL)
+	if ((r = EVP_PKEY_get1_RSA(pkey)) == NULL) {
 		warnx("EVP_PKEY_get1_RSA");
-	else if ((mod = bn2string(r->n)) == NULL)
+		goto out;
+	}
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	n = r->n;
+	e = r->e;
+#else
+	n = RSA_get0_n(r);
+	e = RSA_get0_e(r);
+#endif
+
+	if ((mod = bn2string(n)) == NULL)
 		warnx("bn2string");
-	else if ((exp = bn2string(r->e)) == NULL)
+	else if ((exp = bn2string(e)) == NULL)
 		warnx("bn2string");
 	else if ((json = json_fmt_thumb_rsa(exp, mod)) == NULL)
 		warnx("json_fmt_thumb_rsa");
 
+out:
 	free(exp);
 	free(mod);
 	return json;
@@ -105,7 +118,11 @@ op_thumbprint(int fd, EVP_PKEY *pkey)
 
 	/* Construct the thumbprint input itself. */
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	switch (EVP_PKEY_type(pkey->type)) {
+#else
+	switch (EVP_PKEY_base_id(pkey)) {
+#endif
 	case EVP_PKEY_RSA:
 		if ((thumb = op_thumb_rsa(pkey)) != NULL)
 			break;
@@ -157,6 +174,7 @@ out:
 static int
 op_sign_rsa(char **head, char **prot, EVP_PKEY *pkey, const char *nonce)
 {
+	BIGNUM const *n, *e;
 	char	*exp = NULL, *mod = NULL;
 	int	rc = 0;
 	RSA	*r;
@@ -170,11 +188,23 @@ op_sign_rsa(char **head, char **prot, EVP_PKEY *pkey, const char *nonce)
 	 * Finally, format the header combined with the nonce.
 	 */
 
-	if ((r = EVP_PKEY_get1_RSA(pkey)) == NULL)
+	if ((r = EVP_PKEY_get1_RSA(pkey)) == NULL) {
 		warnx("EVP_PKEY_get1_RSA");
-	else if ((mod = bn2string(r->n)) == NULL)
+		goto out;
+	}
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	n = r->n;
+	e = r->e;
+#else
+	n = RSA_get0_n(r);
+	e = RSA_get0_e(r);
+#endif
+
+
+	if ((mod = bn2string(n)) == NULL)
 		warnx("bn2string");
-	else if ((exp = bn2string(r->e)) == NULL)
+	else if ((exp = bn2string(e)) == NULL)
 		warnx("bn2string");
 	else if ((*head = json_fmt_header_rsa(exp, mod)) == NULL)
 		warnx("json_fmt_header_rsa");
@@ -183,6 +213,7 @@ op_sign_rsa(char **head, char **prot, EVP_PKEY *pkey, const char *nonce)
 	else
 		rc = 1;
 
+out:
 	free(exp);
 	free(mod);
 	return rc;
@@ -217,7 +248,11 @@ op_sign(int fd, EVP_PKEY *pkey)
 		goto out;
 	}
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	switch (EVP_PKEY_type(pkey->type)) {
+#else
+	switch (EVP_PKEY_base_id(pkey)) {
+#endif
 	case EVP_PKEY_RSA:
 		if (!op_sign_rsa(&head, &prot, pkey, nonce))
 			goto out;

@@ -9,6 +9,7 @@ AM_CTAGSFLAGS = \
 	/usr/include/openssl
 
 AM_CFLAGS = \
+	-D_GNU_SOURCE=1 \
 	-Wall \
 	-Werror \
 	-Wextra \
@@ -23,7 +24,8 @@ AM_CFLAGS = \
 	@OPENSSL_INCLUDES@
 AM_LDFLAGS = \
 	-flto \
-	@OPENSSL_LDFLAGS@ @OPENSSL_LIBS@
+	@OPENSSL_LDFLAGS@ @OPENSSL_LIBS@ \
+	-lresolv
 
 
 bin_PROGRAMS = acme-client
@@ -37,7 +39,6 @@ acme_client_SOURCES = \
 	dbg.c \
 	dnsproc.c \
 	fileproc.c \
-	http.c \
 	jsmn.c \
 	json.c \
 	keyproc.c \

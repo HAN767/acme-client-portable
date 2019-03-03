@@ -79,7 +79,7 @@ rsa_key_load(FILE *f, const char *fname)
 	if (pkey == NULL) {
 		warnx("%s: PEM_read_PrivateKey", fname);
 		return NULL;
-	} else if (EVP_PKEY_type(pkey->type) == EVP_PKEY_RSA)
+	} else if (EVP_PKEY_base_id(pkey) == EVP_PKEY_RSA)
 		return pkey;
 
 	warnx("%s: unsupported key type", fname);
