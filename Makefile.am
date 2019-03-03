@@ -1,3 +1,13 @@
+AM_CTAGSFLAGS = \
+	--c-kinds=* \
+	--extras=* \
+	--fields=* \
+	--language-force=C \
+	--recurse=yes \
+	--tag-relative=yes \
+	--totals=yes \
+	/usr/include/openssl
+
 AM_CFLAGS = \
 	-Wall \
 	-Werror \
