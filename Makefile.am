@@ -6,6 +6,7 @@ AM_CTAGSFLAGS = \
 	--recurse=yes \
 	--tag-relative=yes \
 	--totals=yes \
+	/usr/include/curl \
 	/usr/include/openssl
 
 AM_CFLAGS = \
