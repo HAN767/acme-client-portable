@@ -173,8 +173,6 @@ struct	capaths {
 
 struct	jsmnn;
 
-__BEGIN_DECLS
-
 /*
  * Start with our components.
  * These are all isolated and talk to each other using sockets.
@@ -257,8 +255,6 @@ int		 verbose;
  * What component is the process within (COMP__MAX for none)?
  */
 enum comp	 proccomp;
-
-__END_DECLS
 
 #endif /* ! EXTERN_H */
 
