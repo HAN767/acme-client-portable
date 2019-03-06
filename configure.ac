@@ -25,6 +25,8 @@ AC_CONFIG_MACRO_DIRS([m4])
 AC_FUNC_FORK
 
 AX_CHECK_OPENSSL([], [AC_MSG_ERROR([Openssl not found.])])
+AX_CHECK_CURL([], [AC_MSG_ERROR([Curl not found.])])
+AX_CHECK_BSD([], [AC_MSG_ERROR([Libbsd not found.])])
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

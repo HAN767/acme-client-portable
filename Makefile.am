@@ -21,9 +21,13 @@ AM_CFLAGS = \
 	-Wstrict-prototypes \
 	-Wunused \
 	-flto \
+	@BSD_INCLUDES@ \
+	@CURL_INCLUDES@ \
 	@OPENSSL_INCLUDES@
 AM_LDFLAGS = \
 	-flto \
+	@BSD_LDFLAGS@ @BSD_LIBS@ \
+	@CURL_LDFLAGS@ @CURL_LIBS@ \
 	@OPENSSL_LDFLAGS@ @OPENSSL_LIBS@ \
 	-lresolv
 
