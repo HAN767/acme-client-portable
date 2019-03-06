@@ -3,6 +3,7 @@
 /Makefile
 /Makefile.in
 /aclocal.m4
+/acme-client
 /autom4te.cache
 /build-aux
 /config.*
