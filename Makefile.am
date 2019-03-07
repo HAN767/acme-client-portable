@@ -29,8 +29,7 @@ AM_LDFLAGS = \
 	-flto \
 	@BSD_LDFLAGS@ @BSD_LIBS@ \
 	@CURL_LDFLAGS@ @CURL_LIBS@ \
-	@OPENSSL_LDFLAGS@ @OPENSSL_LIBS@ \
-	-lresolv
+	@OPENSSL_LDFLAGS@ @OPENSSL_LIBS@
 
 
 bin_PROGRAMS = acme-client
