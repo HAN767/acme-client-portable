@@ -30,10 +30,6 @@ AM_LDFLAGS = \
 	@BSD_LDFLAGS@ \
 	@CURL_LDFLAGS@ \
 	@OPENSSL_LDFLAGS@
-LDADD = \
-	@BSD_LIBS@ \
-	@CURL_LIBS@ \
-	@OPENSSL_LIBS@
 
 
 bin_PROGRAMS = acme-client
@@ -56,6 +52,10 @@ acme_client_SOURCES = \
 	revokeproc.c \
 	rsa.c \
 	util.c
+acme_client_LDADD = \
+	@BSD_LIBS@ \
+	@CURL_LIBS@ \
+	@OPENSSL_LIBS@
 
 dist_man_MANS = \
 	acme-client.1 \
