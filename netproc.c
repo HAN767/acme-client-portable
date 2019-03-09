@@ -238,11 +238,29 @@ sreq(struct conn *c, const char *addr, const char *req)
 	char *nonce = NULL;
 	char *reqsn = NULL;
 
+	/*
+	 * Since server is obligated to send Reply-Nonce only on successful
+	 * requests or if the nonce is wrong, let's provide wrong value
+	 * `foobar' and use Reply-Nonce from what we get back.
+	 */
+	/* Send the nonce and request payload to the acctproc. */
+	if (writeop(c->fd, COMM_ACCT, ACCT_SIGN) <= 0) {
+		return -1;
+	} else if (writestr(c->fd, COMM_PAY, req) <= 0) {
+		return -1;
+	} else if (writestr(c->fd, COMM_NONCE, "foobar") <= 0) {
+		return -1;
+	}
+	/* Now read back the signed payload. */
+	if ((reqsn = readstr(c->fd, COMM_REQ)) == NULL)
+		return -1;
+
 	curl = prepare_curl(addr, NULL);
 	if (!curl) { return -1; }
 
 	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, get_nonce_cb);
 	curl_easy_setopt(curl, CURLOPT_HEADERDATA, &nonce);
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, reqsn);
 
 	if (curl_easy_perform(curl) != CURLE_OK) {
 		curl_easy_cleanup(curl);
