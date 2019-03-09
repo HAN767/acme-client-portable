@@ -84,6 +84,23 @@ buf_dump(const struct buf *buf)
 	free(nbuf);
 }
 
+/* This technically can dump the buffer in multiple part, in practice they seem
+ * to be small enough. And it's for debugging only so does not really matter. */
+static size_t silent_cb(char *ptr, size_t size, size_t nmemb, void *userdata) {
+	(void)ptr;
+	(void)size; /* always 1 */
+	(void)userdata;
+
+	if (verbose > 1) {
+		struct buf buf;
+		buf.sz = nmemb;
+		buf.buf = ptr;
+		buf_dump(&buf);
+	}
+
+	return nmemb;
+}
+
 static size_t write_cb(char *ptr, size_t size, size_t nmemb, void *userdata) {
 	(void)size; /* always 1 */
 
@@ -120,6 +137,8 @@ static CURL *prepare_curl(char const *addr, struct buf *buf) {
 
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, buf);
+	} else {
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, silent_cb);
 	}
 	/* TODO: swallow the answer if buf not provided */
 
