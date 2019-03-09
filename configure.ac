@@ -28,5 +28,26 @@ AX_CHECK_OPENSSL([], [AC_MSG_ERROR([Openssl not found.])])
 AX_CHECK_CURL([], [AC_MSG_ERROR([Curl not found.])])
 AX_CHECK_BSD([], [AC_MSG_ERROR([Libbsd not found.])])
 
+# Compiling with libbsd can cause this error on some systems:
+# #warning usage of non-standard #include <sys/cdefs.h> is deprecated [-Werror=cpp]
+# if so, compile with -Wno-cpp to make it pass
+AC_MSG_CHECKING([whether including bsd/stdlib.h is without warnings])
+save_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS -Werror=cpp -Werror"
+AC_COMPILE_IFELSE(
+	[AC_LANG_SOURCE(
+		[[
+			#include <stdlib.h>
+			#include <bsd/stdlib.h>
+		]]
+	)],
+	[AC_MSG_RESULT([yes])],
+	[
+		AC_MSG_RESULT([no])
+		save_CPPFLAGS="$save_CPPFLAGS -Wno-cpp"
+	]
+)
+CPPFLAGS="$save_CPPFLAGS"
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
