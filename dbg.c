@@ -46,3 +46,5 @@ dodbg(const char *fmt, ...)
 	vwarnx(fmt, ap);
 	va_end(ap);
 }
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

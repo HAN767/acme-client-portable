@@ -29,6 +29,7 @@
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
 
+#include "compat.h"
 #include "extern.h"
 
 #define	RENEW_ALLOW (30 * 24 * 60 * 60)
@@ -167,13 +168,17 @@ revokeproc(int fd, const char *certdir, const char *certfile, int force,
 	 * command line.
 	 */
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	extsz = x->cert_info->extensions != NULL ?
 		sk_X509_EXTENSION_num(x->cert_info->extensions) : 0;
+#else
+	extsz = X509_get_ext_count(x);
+#endif
 
 	/* Scan til we find the SAN NID. */
 
 	for (i = 0; i < extsz; i++) {
-		ex = sk_X509_EXTENSION_value(x->cert_info->extensions, i);
+		ex = X509_get_ext(x, i);
 		assert(ex != NULL);
 		obj = X509_EXTENSION_get_object(ex);
 		assert(obj != NULL);
@@ -192,12 +197,12 @@ revokeproc(int fd, const char *certdir, const char *certfile, int force,
 		} else if (!X509V3_EXT_print(bio, ex, 0, 0)) {
 			warnx("X509V3_EXT_print");
 			goto out;
-		} else if ((san = calloc(1, bio->num_write + 1)) == NULL) {
+		} else if ((san = calloc(1, BIO_number_written(bio) + 1)) == NULL) {
 			warn("calloc");
 			goto out;
 		}
-		ssz = BIO_read(bio, san, bio->num_write);
-		if (ssz < 0 || (unsigned)ssz != bio->num_write) {
+		ssz = BIO_read(bio, san, BIO_number_written(bio));
+		if (ssz < 0 || (unsigned)ssz != BIO_number_written(bio)) {
 			warnx("BIO_read");
 			goto out;
 		}
@@ -346,3 +351,5 @@ out:
 	ERR_free_strings();
 	return rc;
 }
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

@@ -21,9 +21,11 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <bsd/stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include "compat.h"
 #include "extern.h"
 
 int
@@ -149,3 +151,5 @@ out:
 	free(tok);
 	return rc;
 }
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

@@ -26,6 +26,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "compat.h"
 #include "extern.h"
 
 static int
@@ -209,3 +210,5 @@ out:
 	free(ch);
 	return rc;
 }
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

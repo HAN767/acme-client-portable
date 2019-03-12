@@ -95,3 +95,5 @@ int jsmn_parse(jsmn_parser *parser, const char *js, size_t len,
 #endif
 
 #endif /* __JSMN_H_ */
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

@@ -26,6 +26,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "compat.h"
 #include "extern.h"
 #include "parse.h"
 
@@ -36,7 +37,7 @@ int
 main(int argc, char *argv[])
 {
 	const char	 **alts = NULL;
-	char		 *certdir = NULL, *certfile = NULL;
+	char		 *certdir = NULL, *certdir_src = NULL, *certfile = NULL;
 	char		 *chainfile = NULL, *fullchainfile = NULL;
 	char		 *acctkey = NULL;
 	char		 *chngdir = NULL, *auth = NULL;
@@ -103,20 +104,13 @@ main(int argc, char *argv[])
 	argc--;
 	argv++;
 
-	if (domain->cert != NULL) {
-		if ((certdir = dirname(domain->cert)) != NULL) {
-			if ((certdir = strdup(certdir)) == NULL)
-				err(EXIT_FAILURE, "strdup");
-		} else
-			err(EXIT_FAILURE, "dirname");
-	} else {
-		/* the parser enforces that at least cert or fullchain is set */
-		if ((certdir = dirname(domain->fullchain)) != NULL) {
-			if ((certdir = strdup(certdir)) == NULL)
-				err(EXIT_FAILURE, "strdup");
-		} else
-			err(EXIT_FAILURE, "dirname");
-
+	/* the parser enforces that at least cert or fullchain is set */
+	certdir_src = domain->cert ? domain->cert : domain->fullchain;
+	if ((certdir_src = strdup(certdir_src)) == NULL) {
+		err(EXIT_FAILURE, "strdup");
+	}
+	if ((certdir = dirname(certdir_src)) == NULL) {
+		err(EXIT_FAILURE, "dirname");
 	}
 
 	if (domain->cert != NULL) {
@@ -414,6 +408,7 @@ main(int argc, char *argv[])
 	    checkexit(pids[COMP_DNS], COMP_DNS) +
 	    checkexit(pids[COMP_REVOKE], COMP_REVOKE);
 
+	free(certdir_src);
 	free(alts);
 	return rc != COMP__MAX ? EXIT_FAILURE : (c == 2 ? EXIT_SUCCESS : 2);
 usage:
@@ -421,3 +416,5 @@ usage:
 	    "usage: acme-client [-ADFnrv] [-f configfile] domain\n");
 	return EXIT_FAILURE;
 }
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

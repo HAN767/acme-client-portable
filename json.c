@@ -676,3 +676,5 @@ json_fmt_thumb_rsa(const char *exp, const char *mod)
 	}
 	return p;
 }
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

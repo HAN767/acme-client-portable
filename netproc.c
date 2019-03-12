@@ -22,9 +22,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <tls.h>
 
-#include "http.h"
+#include <curl/curl.h>
+
+#include "compat.h"
 #include "extern.h"
 #include "parse.h"
 
@@ -83,90 +84,65 @@ buf_dump(const struct buf *buf)
 	free(nbuf);
 }
 
-/*
- * Extract the domain and port from a URL.
- * The url must be formatted as schema://address[/stuff].
- * This returns NULL on failure.
- */
-static char *
-url2host(const char *host, short *port, char **path)
-{
-	char	*url, *ep;
+/* This technically can dump the buffer in multiple part, in practice they seem
+ * to be small enough. And it's for debugging only so does not really matter. */
+static size_t silent_cb(char *ptr, size_t size, size_t nmemb, void *userdata) {
+	(void)ptr;
+	(void)size; /* always 1 */
+	(void)userdata;
 
-	/* We only understand HTTP and HTTPS. */
-	if (strncmp(host, "https://", 8) == 0) {
-		*port = 443;
-		if ((url = strdup(host + 8)) == NULL) {
-			warn("strdup");
-			return NULL;
-		}
-	} else if (strncmp(host, "http://", 7) == 0) {
-		*port = 80;
-		if ((url = strdup(host + 7)) == NULL) {
-			warn("strdup");
-			return NULL;
-		}
-	} else {
-		warnx("%s: unknown schema", host);
-		return NULL;
+	if (verbose > 1) {
+		struct buf buf;
+		buf.sz = nmemb;
+		buf.buf = ptr;
+		buf_dump(&buf);
 	}
 
-	/* Terminate path part. */
-	if ((ep = strchr(url, '/')) != NULL) {
-		*path = strdup(ep);
-		*ep = '\0';
-	} else
-		*path = strdup("");
-
-	if (*path == NULL) {
-		warn("strdup");
-		free(url);
-		return NULL;
-	}
-
-	return url;
+	return nmemb;
 }
 
-/*
- * Contact dnsproc and resolve a host.
- * Place the answers in "v" and return the number of answers, which can
- * be at most MAX_SERVERS_DNS.
- * Return <0 on failure.
- */
-static ssize_t
-urlresolve(int fd, const char *host, struct source *v)
-{
-	char		*addr;
-	size_t		 i, sz;
-	long		 lval;
+static size_t write_cb(char *ptr, size_t size, size_t nmemb, void *userdata) {
+	(void)size; /* always 1 */
 
-	if (writeop(fd, COMM_DNS, DNS_LOOKUP) <= 0)
-		return -1;
-	else if (writestr(fd, COMM_DNSQ, host) <= 0)
-		return -1;
-	else if ((lval = readop(fd, COMM_DNSLEN)) < 0)
-		return -1;
+	struct buf *buf = (struct buf *)userdata;
+	char *new_buf = NULL;
 
-	sz = lval;
-	assert(sz <= MAX_SERVERS_DNS);
-
-	for (i = 0; i < sz; i++) {
-		memset(&v[i], 0, sizeof(struct source));
-		if ((lval = readop(fd, COMM_DNSF)) < 0)
-			goto err;
-		else if (lval != 4 && lval != 6)
-			goto err;
-		else if ((addr = readstr(fd, COMM_DNSA)) == NULL)
-			goto err;
-		v[i].family = lval;
-		v[i].ip = addr;
+	if (buf->buf) {
+		new_buf = recallocarray(buf->buf, buf->sz, buf->sz + nmemb, 1);
+	} else {
+		new_buf = calloc(nmemb, 1);
 	}
+	if (!new_buf) { return 0; }
+	buf->buf = new_buf;
 
-	return sz;
-err:
-	for (i = 0; i < sz; i++)
-		free(v[i].ip);
-	return -1;
+	memcpy(buf->buf + buf->sz, ptr, nmemb);
+	buf->sz += nmemb;
+
+	return nmemb;
+}
+
+static CURL *prepare_curl(char const *addr, struct buf *buf) {
+	CURL *curl = curl_easy_init();
+	if (!curl) { return curl; }
+
+	curl_easy_setopt(curl, CURLOPT_URL, addr);
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 3L);
+	curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
+
+	if (buf) {
+		free(buf->buf);
+		buf->sz = 0;
+		buf->buf = NULL;
+
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, buf);
+	} else {
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, silent_cb);
+	}
+	/* TODO: swallow the answer if buf not provided */
+
+	return curl;
 }
 
 /*
@@ -177,75 +153,76 @@ err:
 static long
 nreq(struct conn *c, const char *addr)
 {
-	struct httpget	*g;
-	struct source	 src[MAX_SERVERS_DNS];
-	struct httphead *st;
-	char		*host, *path;
-	short		 port;
-	size_t		 srcsz;
-	ssize_t		 ssz;
-	long		 code;
-	int		 redirects = 0;
+	long code;
+	CURL *curl = NULL;
 
-	if ((host = url2host(addr, &port, &path)) == NULL)
-		return -1;
-
-again:
-	if ((ssz = urlresolve(c->dfd, host, src)) < 0) {
-		free(host);
-		free(path);
+	curl = prepare_curl(addr, &c->buf);
+	if (!curl) {
 		return -1;
 	}
-	srcsz = ssz;
 
-	g = http_get(src, srcsz, host, port, path, NULL, 0);
-	free(host);
-	free(path);
-	if (g == NULL)
+	if (curl_easy_perform(curl) != CURLE_OK) {
+		curl_easy_cleanup(curl);
 		return -1;
-
-	switch (g->code) {
-	case 301:
-	case 302:
-	case 303:
-	case 307:
-	case 308:
-		redirects++;
-		if (redirects > 3) {
-			warnx("too many redirects");
-			http_get_free(g);
-			return -1;
-		}
-
-		if ((st = http_head_get("Location", g->head, g->headsz)) ==
-		    NULL) {
-			warnx("redirect without location header");
-			return -1;
-		}
-
-		dodbg("Location: %s", st->val);
-		host = url2host(st->val, &port, &path);
-		http_get_free(g);
-		if (host == NULL)
-			return -1;
-		goto again;
-		break;
-	default:
-		code = g->code;
-		break;
 	}
 
-	/* Copy the body part into our buffer. */
-	free(c->buf.buf);
-	c->buf.sz = g->bodypartsz;
-	c->buf.buf = malloc(c->buf.sz);
-	if (c->buf.buf == NULL) {
-		warn("malloc");
-		code = -1;
-	} else
-		memcpy(c->buf.buf, g->bodypart, c->buf.sz);
-	http_get_free(g);
+	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
+
+	curl_easy_cleanup(curl);
 	return code;
+}
+
+static size_t
+get_nonce_cb(char *buf, size_t size, size_t nitems, void *userdata) {
+	char **nonce = (char **)userdata;
+	char *name = NULL;
+	char *value = NULL;
+	size_t buf_len = size * nitems;
+	size_t processed = buf_len;
+
+	char *colon_ptr = memchr(buf, ':', buf_len);
+	if (!colon_ptr) {
+		/* Not a valid header line. Either something like `HTTP/2 200`
+		 * or folded header, which this parsing does not support. */
+		return buf_len;
+	}
+
+	name = strndup(buf, colon_ptr - buf);
+	if (!name) {
+		warnx("strndup for name");
+		processed = 0;
+		goto out;
+	}
+
+	for (++colon_ptr; isspace(*colon_ptr); ++colon_ptr) ;
+	char *val_start = colon_ptr;
+	size_t val_len = buf + buf_len - 1 - val_start;
+	for (; isspace(val_start[val_len - 1]); --val_len) ;
+
+	value = strndup(val_start, val_len);
+	if (!value) {
+		warnx("strndup for value");
+		processed = 0;
+		goto out;
+	}
+
+	/* Http headers are defined to be case insensitive. */
+	for (char *p = name ; *p; ++p) { *p = tolower(*p); }
+
+	if (strcmp("replay-nonce", name) == 0) {
+		if (*nonce) {
+			warnx("multiple replay-nonce");
+			processed = 0;
+			goto out;
+		}
+		*nonce = value;
+		value = NULL;
+	}
+
+out:
+	free(name);
+	free(value);
+	return processed;
 }
 
 /*
@@ -256,40 +233,45 @@ again:
 static long
 sreq(struct conn *c, const char *addr, const char *req)
 {
-	struct httpget	*g;
-	struct source	 src[MAX_SERVERS_DNS];
-	char		*host, *path, *nonce, *reqsn;
-	short		 port;
-	struct httphead	*h;
-	ssize_t		 ssz;
-	long		 code;
+	CURL *curl = NULL;
+	long code = 0;
+	char *nonce = NULL;
+	char *reqsn = NULL;
 
-	if ((host = url2host(c->na, &port, &path)) == NULL)
+	/*
+	 * Since server is obligated to send Reply-Nonce only on successful
+	 * requests or if the nonce is wrong, let's provide wrong value
+	 * `foobar' and use Reply-Nonce from what we get back.
+	 */
+	/* Send the nonce and request payload to the acctproc. */
+	if (writeop(c->fd, COMM_ACCT, ACCT_SIGN) <= 0) {
 		return -1;
-
-	if ((ssz = urlresolve(c->dfd, host, src)) < 0) {
-		free(host);
-		free(path);
+	} else if (writestr(c->fd, COMM_PAY, req) <= 0) {
+		return -1;
+	} else if (writestr(c->fd, COMM_NONCE, "foobar") <= 0) {
 		return -1;
 	}
-
-	g = http_get(src, (size_t)ssz, host, port, path, NULL, 0);
-	free(host);
-	free(path);
-	if (g == NULL)
+	/* Now read back the signed payload. */
+	if ((reqsn = readstr(c->fd, COMM_REQ)) == NULL)
 		return -1;
 
-	h = http_head_get("Replay-Nonce", g->head, g->headsz);
-	if (h == NULL) {
+	curl = prepare_curl(addr, NULL);
+	if (!curl) { return -1; }
+
+	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, get_nonce_cb);
+	curl_easy_setopt(curl, CURLOPT_HEADERDATA, &nonce);
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, reqsn);
+
+	if (curl_easy_perform(curl) != CURLE_OK) {
+		curl_easy_cleanup(curl);
+		return -1;
+	}
+	curl_easy_cleanup(curl);
+
+	if (!nonce) {
 		warnx("%s: no replay nonce", c->na);
-		http_get_free(g);
-		return -1;
-	} else if ((nonce = strdup(h->val)) == NULL) {
-		warn("strdup");
-		http_get_free(g);
 		return -1;
 	}
-	http_get_free(g);
 
 	/*
 	 * Send the nonce and request payload to the acctproc.
@@ -311,37 +293,21 @@ sreq(struct conn *c, const char *addr, const char *req)
 	if ((reqsn = readstr(c->fd, COMM_REQ)) == NULL)
 		return -1;
 
-	/* Now send the signed payload to the CA. */
-	if ((host = url2host(addr, &port, &path)) == NULL) {
-		free(reqsn);
-		return -1;
-	} else if ((ssz = urlresolve(c->dfd, host, src)) < 0) {
-		free(host);
-		free(path);
-		free(reqsn);
+	curl = prepare_curl(addr, &c->buf);
+	if (!curl) {
 		return -1;
 	}
 
-	g = http_get(src, (size_t)ssz, host, port, path, reqsn, strlen(reqsn));
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, reqsn);
 
-	free(host);
-	free(path);
-	free(reqsn);
-	if (g == NULL)
+	if (curl_easy_perform(curl) != CURLE_OK) {
+		curl_easy_cleanup(curl);
 		return -1;
+	}
 
-	/* Stuff response into parse buffer. */
-	code = g->code;
+	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
 
-	free(c->buf.buf);
-	c->buf.sz = g->bodypartsz;
-	c->buf.buf = malloc(c->buf.sz);
-	if (c->buf.buf == NULL) {
-		warn("malloc");
-		code = -1;
-	} else
-		memcpy(c->buf.buf, g->bodypart, c->buf.sz);
-	http_get_free(g);
+	curl_easy_cleanup(curl);
 	return code;
 }
 
@@ -605,18 +571,13 @@ netproc(int kfd, int afd, int Cfd, int cfd, int dfd, int rfd,
 	memset(&paths, 0, sizeof(struct capaths));
 	memset(&c, 0, sizeof(struct conn));
 
-	if (unveil(tls_default_ca_cert_file(), "r") == -1) {
-		warn("unveil");
-		goto out;
-	}
-
 	if (pledge("stdio inet rpath", NULL) == -1) {
 		warn("pledge");
 		goto out;
 	}
 
-	if (http_init() == -1) {
-		warn("http_init");
+	if (curl_global_init(CURL_GLOBAL_ALL) != 0) {
+		warn("curl_global_init");
 		goto out;
 	}
 
@@ -816,3 +777,5 @@ out:
 	json_free_capaths(&paths);
 	return rc;
 }
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

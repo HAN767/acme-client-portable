@@ -23,12 +23,15 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <bsd/string.h>
+
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
+#include "compat.h"
 #include "extern.h"
 #include "rsa.h"
 
@@ -259,3 +262,5 @@ out:
 	ERR_free_strings();
 	return rc;
 }
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

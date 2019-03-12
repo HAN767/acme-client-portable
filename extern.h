@@ -17,6 +17,8 @@
 #ifndef EXTERN_H
 #define EXTERN_H
 
+#include <sys/types.h>
+
 #include "parse.h"
 
 #define MAX_SERVERS_DNS 8
@@ -173,8 +175,6 @@ struct	capaths {
 
 struct	jsmnn;
 
-__BEGIN_DECLS
-
 /*
  * Start with our components.
  * These are all isolated and talk to each other using sockets.
@@ -258,6 +258,6 @@ int		 verbose;
  */
 enum comp	 proccomp;
 
-__END_DECLS
-
 #endif /* ! EXTERN_H */
+
+/* vim: set noet ts=8 sts=8 sw=8 : */

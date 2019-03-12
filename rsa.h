@@ -21,3 +21,5 @@ EVP_PKEY	*rsa_key_create(FILE *, const char *);
 EVP_PKEY	*rsa_key_load(FILE *, const char *);
 
 #endif /* ! RSA_H */
+
+/* vim: set noet ts=8 sts=8 sw=8 : */
