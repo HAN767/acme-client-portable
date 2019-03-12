@@ -1,0 +1,9 @@
+Install instructions:
+
+	autoreconf --install
+	./configure
+	make
+	make install
+
+
+TODO: Rest of the readme.
