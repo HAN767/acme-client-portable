@@ -1,4 +1,4 @@
-/*	$Id: main.c,v 1.42 2019/01/29 16:38:29 benno Exp $ */
+/*	$Id: main.c,v 1.45 2019/03/09 18:07:40 benno Exp $ */
 /*
  * Copyright (c) 2016 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -37,11 +37,12 @@ int
 main(int argc, char *argv[])
 {
 	const char	 **alts = NULL;
-	char		 *certdir = NULL, *certdir_src = NULL, *certfile = NULL;
+	char		 *certdir = NULL, *certfile = NULL;
 	char		 *chainfile = NULL, *fullchainfile = NULL;
 	char		 *acctkey = NULL;
 	char		 *chngdir = NULL, *auth = NULL;
 	char		 *conffile = CONF_FILE;
+	char		 *tmps, *tmpsd;
 	int		  key_fds[2], acct_fds[2], chng_fds[2], cert_fds[2];
 	int		  file_fds[2], dns_fds[2], rvk_fds[2];
 	int		  force = 0;
@@ -105,36 +106,41 @@ main(int argc, char *argv[])
 	argv++;
 
 	/* the parser enforces that at least cert or fullchain is set */
-	certdir_src = domain->cert ? domain->cert : domain->fullchain;
-	if ((certdir_src = strdup(certdir_src)) == NULL) {
+	tmps = domain->cert ? domain->cert : domain->fullchain;
+	if ((tmps = strdup(tmps)) == NULL)
 		err(EXIT_FAILURE, "strdup");
-	}
-	if ((certdir = dirname(certdir_src)) == NULL) {
+	if ((tmpsd = dirname(tmps)) == NULL)
 		err(EXIT_FAILURE, "dirname");
-	}
+	if ((certdir = strdup(tmpsd)) == NULL)
+		err(EXIT_FAILURE, "strdup");
+	free(tmps);
+	tmps = tmpsd = NULL;
 
 	if (domain->cert != NULL) {
-		if ((certfile = basename(domain->cert)) != NULL) {
-			if ((certfile = strdup(certfile)) == NULL)
-				err(EXIT_FAILURE, "strdup");
-		} else
+		if ((tmps = strdup(domain->cert)) == NULL)
+			err(EXIT_FAILURE, "strdup");
+		if ((certfile = basename(tmps)) == NULL)
 			err(EXIT_FAILURE, "basename");
+		if ((certfile = strdup(certfile)) == NULL)
+			err(EXIT_FAILURE, "strdup");
 	}
 
 	if (domain->chain != NULL) {
-		if ((chainfile = basename(domain->chain)) != NULL) {
-			if ((chainfile = strdup(chainfile)) == NULL)
-				err(EXIT_FAILURE, "strdup");
-		} else
+		if ((tmps = strdup(domain->chain)) == NULL)
+			err(EXIT_FAILURE, "strdup");
+		if ((chainfile = basename(tmps)) == NULL)
 			err(EXIT_FAILURE, "basename");
+		if ((chainfile = strdup(chainfile)) == NULL)
+			err(EXIT_FAILURE, "strdup");
 	}
 
 	if (domain->fullchain != NULL) {
-		if ((fullchainfile = basename(domain->fullchain)) != NULL) {
-			if ((fullchainfile = strdup(fullchainfile)) == NULL)
-				err(EXIT_FAILURE, "strdup");
-		} else
+		if ((tmps = strdup(domain->fullchain)) == NULL)
+			err(EXIT_FAILURE, "strdup");
+		if ((fullchainfile = basename(tmps)) == NULL)
 			err(EXIT_FAILURE, "basename");
+		if ((fullchainfile = strdup(fullchainfile)) == NULL)
+			err(EXIT_FAILURE, "strdup");
 	}
 
 	if ((auth = domain->auth) == NULL) {
@@ -246,7 +252,6 @@ main(int argc, char *argv[])
 		    dns_fds[1], rvk_fds[1],
 		    (popts & ACME_OPT_NEWACCT), revocate, authority,
 		    (const char *const *)alts, altsz);
-		free(alts);
 		exit(c ? EXIT_SUCCESS : EXIT_FAILURE);
 	}
 
@@ -273,7 +278,6 @@ main(int argc, char *argv[])
 		close(file_fds[1]);
 		c = keyproc(key_fds[0], domain->key,
 		    (const char **)alts, altsz, (popts & ACME_OPT_NEWDKEY));
-		free(alts);
 		exit(c ? EXIT_SUCCESS : EXIT_FAILURE);
 	}
 
@@ -286,7 +290,6 @@ main(int argc, char *argv[])
 
 	if (pids[COMP_ACCOUNT] == 0) {
 		proccomp = COMP_ACCOUNT;
-		free(alts);
 		close(cert_fds[0]);
 		close(dns_fds[0]);
 		close(rvk_fds[0]);
@@ -306,7 +309,6 @@ main(int argc, char *argv[])
 
 	if (pids[COMP_CHALLENGE] == 0) {
 		proccomp = COMP_CHALLENGE;
-		free(alts);
 		close(cert_fds[0]);
 		close(dns_fds[0]);
 		close(rvk_fds[0]);
@@ -325,7 +327,6 @@ main(int argc, char *argv[])
 
 	if (pids[COMP_CERT] == 0) {
 		proccomp = COMP_CERT;
-		free(alts);
 		close(dns_fds[0]);
 		close(rvk_fds[0]);
 		close(file_fds[1]);
@@ -343,7 +344,6 @@ main(int argc, char *argv[])
 
 	if (pids[COMP_FILE] == 0) {
 		proccomp = COMP_FILE;
-		free(alts);
 		close(dns_fds[0]);
 		close(rvk_fds[0]);
 		c = fileproc(file_fds[1], certdir, certfile, chainfile,
@@ -364,7 +364,6 @@ main(int argc, char *argv[])
 
 	if (pids[COMP_DNS] == 0) {
 		proccomp = COMP_DNS;
-		free(alts);
 		close(rvk_fds[0]);
 		c = dnsproc(dns_fds[0]);
 		exit(c ? EXIT_SUCCESS : EXIT_FAILURE);
@@ -383,7 +382,6 @@ main(int argc, char *argv[])
 		    certfile != NULL ? certfile : fullchainfile,
 		    force, revocate,
 		    (const char *const *)alts, altsz);
-		free(alts);
 		exit(c ? EXIT_SUCCESS : EXIT_FAILURE);
 	}
 
@@ -408,8 +406,6 @@ main(int argc, char *argv[])
 	    checkexit(pids[COMP_DNS], COMP_DNS) +
 	    checkexit(pids[COMP_REVOKE], COMP_REVOKE);
 
-	free(certdir_src);
-	free(alts);
 	return rc != COMP__MAX ? EXIT_FAILURE : (c == 2 ? EXIT_SUCCESS : 2);
 usage:
 	fprintf(stderr,
