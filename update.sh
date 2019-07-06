@@ -15,7 +15,9 @@ set +u
 require_clean_work_tree "update from openbsd tree"
 set -u
 
-cvs up -PACd
+git checkout openbsd
+
+cvs up -PAd
 
 backup_regex='^\?\? \.#.*\.[0-9]+\.[0-9]+$'
 if git status -z --untracked-files --porcelain | egrep -z "$backup_regex"; then
