@@ -17,7 +17,7 @@ set -u
 
 git checkout openbsd
 
-cvs up -PACd
+cvs up -PAd
 
 backup_regex='^\?\? \.#.*\.[0-9]+\.[0-9]+$'
 if git status -z --untracked-files --porcelain | egrep -z "$backup_regex"; then
