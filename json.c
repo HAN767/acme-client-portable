@@ -23,6 +23,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "config.h"
 #include "jsmn.h"
 #include "extern.h"
 

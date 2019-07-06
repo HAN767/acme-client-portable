@@ -29,6 +29,7 @@
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
 
+#include "config.h"
 #include "extern.h"
 
 #define	RENEW_ALLOW (30 * 24 * 60 * 60)

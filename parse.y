@@ -37,6 +37,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "config.h"
 #include "parse.h"
 #include "extern.h"
 

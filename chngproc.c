@@ -24,6 +24,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "config.h"
 #include "extern.h"
 
 int

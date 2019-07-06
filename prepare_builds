@@ -1,0 +1,33 @@
+#!/bin/sh
+set -xeu
+
+[ -f acctproc.c ]
+[ -f chngproc.c ]
+[ -f fileproc.c ]
+
+autoreconf -i
+
+for ver in 1.1 1.0; do
+	if [ -d "build-$ver" ]; then
+		rm -r -- "build-$ver"
+	fi
+	mkdir -- "build-$ver"
+
+	cd -- "build-$ver"
+
+	case "$ver" in
+	1.0)
+		PKG_CONFIG_PATH=/usr/lib/openssl-1.0/pkgconfig \
+			../configure --prefix=/tmp/acp-"$ver"
+		;;
+	1.1)
+		../configure --prefix=/tmp/acp-"$ver"
+		;;
+	*)
+		echo 2>&1 "Unknown version: $ver"
+		exit 1
+		;;
+	esac
+
+	cd -- ..
+done

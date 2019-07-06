@@ -19,6 +19,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+#include "config.h"
 #include "extern.h"
 
 void

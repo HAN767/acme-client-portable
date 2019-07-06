@@ -29,6 +29,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "config.h"
 #include "extern.h"
 
 static	volatile sig_atomic_t sig;

@@ -27,6 +27,7 @@
 #include <openssl/ec.h>
 #include <openssl/obj_mac.h>
 
+#include "config.h"
 #include "key.h"
 
 /*

@@ -32,6 +32,7 @@
 #include <tls.h>
 #include <unistd.h>
 
+#include "config.h"
 #include "http.h"
 #include "extern.h"
 

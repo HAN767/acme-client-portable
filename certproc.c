@@ -26,6 +26,7 @@
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
 
+#include "config.h"
 #include "extern.h"
 
 #define MARKER "-----END CERTIFICATE-----\n"

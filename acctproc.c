@@ -29,6 +29,7 @@
 #include <openssl/rand.h>
 #include <openssl/err.h>
 
+#include "config.h"
 #include "extern.h"
 #include "key.h"
 
