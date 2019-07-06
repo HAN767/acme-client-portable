@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 export CVS_RSH=ssh
 export CVSIGNORE="\
@@ -14,6 +14,8 @@ set +u
 . /usr/lib/git-core/git-sh-setup
 require_clean_work_tree "update from openbsd tree"
 set -u
+
+git checkout openbsd
 
 cvs up -PACd
 
