@@ -24,6 +24,7 @@
 #include <unistd.h>
 
 #include "config.h"
+#include "compat.h"
 #include "jsmn.h"
 #include "extern.h"
 

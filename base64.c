@@ -15,13 +15,19 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <netinet/in.h>
-#include <resolv.h>
-
+#include <err.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+#include <openssl/buffer.h>
 
 #include "config.h"
 #include "extern.h"
+
+static int
+x_b64_ntop(const unsigned char *src, int src_len, char *dst, int dst_len);
 
 /*
  * Compute the maximum buffer required for a base64 encoded string of
@@ -49,7 +55,7 @@ base64buf_url(const char *data, size_t len)
 	if ((buf = malloc(sz)) == NULL)
 		return NULL;
 
-	b64_ntop(data, len, buf, sz);
+	x_b64_ntop((const unsigned  char *)data, len, buf, sz);
 
 	for (i = 0; i < sz; i++)
 		switch (buf[i]) {
@@ -65,4 +71,49 @@ base64buf_url(const char *data, size_t len)
 		}
 
 	return buf;
+}
+
+static int
+x_b64_ntop(const unsigned char *src, int src_len, char *dst, int dst_len)
+{
+	int len = 0;
+	int total_len = 0;
+
+	BIO *buf;
+	BUF_MEM *ptr;
+
+	buf = BIO_new(BIO_s_mem());
+	buf = BIO_push(BIO_new(BIO_f_base64()), buf);
+
+	BIO_set_flags(buf, BIO_FLAGS_BASE64_NO_NL);
+	(void)BIO_set_close(buf, BIO_CLOSE);
+
+	do {
+		len = BIO_write(buf, src + total_len, src_len - total_len);
+		if (len > 0) {
+			total_len += len;
+		}
+	} while (len && BIO_should_retry(buf));
+
+	if (BIO_flush(buf) != 1) {
+		warnx("BIO_flush OOM");
+		/* Since we are working with memory buffers, only reason to fail
+		 * is OOM. And due to API of this function there is not a way
+		 * to report it up. So just die. */
+		exit(1);
+	}
+
+	BIO_get_mem_ptr(buf, &ptr);
+	len = ptr->length;
+
+	memcpy(dst, ptr->data, dst_len < len ? dst_len : len);
+	dst[dst_len < len ? dst_len : len] = '\0';
+
+	BIO_free_all(buf);
+
+	if (dst_len < len) {
+		return -1;
+	}
+
+	return len;
 }

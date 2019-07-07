@@ -30,6 +30,7 @@
 #include <openssl/err.h>
 
 #include "config.h"
+#include "compat.h"
 #include "extern.h"
 #include "key.h"
 
@@ -78,15 +79,16 @@ op_thumb_rsa(EVP_PKEY *pkey)
 	char	*exp = NULL, *mod = NULL, *json = NULL;
 	RSA	*r;
 
-	if ((r = EVP_PKEY_get0_RSA(pkey)) == NULL)
-		warnx("EVP_PKEY_get0_RSA");
-	else if ((mod = bn2string(r->n)) == NULL)
+	if ((r = EVP_PKEY_get1_RSA(pkey)) == NULL)
+		warnx("EVP_PKEY_get1_RSA");
+	else if ((mod = bn2string(COMPAT_OPENSSL_get_n(r))) == NULL)
 		warnx("bn2string");
-	else if ((exp = bn2string(r->e)) == NULL)
+	else if ((exp = bn2string(COMPAT_OPENSSL_get_e(r))) == NULL)
 		warnx("bn2string");
 	else if ((json = json_fmt_thumb_rsa(exp, mod)) == NULL)
 		warnx("json_fmt_thumb_rsa");
 
+	RSA_free(r);
 	free(exp);
 	free(mod);
 	return json;
@@ -104,8 +106,8 @@ op_thumb_ec(EVP_PKEY *pkey)
 	char	*x = NULL, *y = NULL;
 	char	*json = NULL;
 
-	if ((ec = EVP_PKEY_get0_EC_KEY(pkey)) == NULL)
-		warnx("EVP_PKEY_get0_EC_KEY");
+	if ((ec = EVP_PKEY_get1_EC_KEY(pkey)) == NULL)
+		warnx("EVP_PKEY_get1_EC_KEY");
 	else if ((X = BN_new()) == NULL)
 		warnx("BN_new");
 	else if ((Y = BN_new()) == NULL)
@@ -120,6 +122,7 @@ op_thumb_ec(EVP_PKEY *pkey)
 	else if ((json = json_fmt_thumb_ec(x, y)) == NULL)
 		warnx("json_fmt_thumb_rsa");
 
+	EC_KEY_free(ec);
 	BN_free(X);
 	BN_free(Y);
 	free(x);
@@ -141,7 +144,7 @@ op_thumbprint(int fd, EVP_PKEY *pkey)
 
 	/* Construct the thumbprint input itself. */
 
-	switch (EVP_PKEY_type(pkey->type)) {
+	switch (COMPAT_OPENSSL_pkey_type(pkey)) {
 	case EVP_PKEY_RSA:
 		if ((thumb = op_thumb_rsa(pkey)) != NULL)
 			break;
@@ -206,17 +209,18 @@ op_sign_rsa(char **prot, EVP_PKEY *pkey, const char *nonce, const char *url)
 	 * Finally, format the header combined with the nonce.
 	 */
 
-	if ((r = EVP_PKEY_get0_RSA(pkey)) == NULL)
-		warnx("EVP_PKEY_get0_RSA");
-	else if ((mod = bn2string(r->n)) == NULL)
+	if ((r = EVP_PKEY_get1_RSA(pkey)) == NULL)
+		warnx("EVP_PKEY_get1_RSA");
+	else if ((mod = bn2string(COMPAT_OPENSSL_get_n(r))) == NULL)
 		warnx("bn2string");
-	else if ((exp = bn2string(r->e)) == NULL)
+	else if ((exp = bn2string(COMPAT_OPENSSL_get_e(r))) == NULL)
 		warnx("bn2string");
 	else if ((*prot = json_fmt_protected_rsa(exp, mod, nonce, url)) == NULL)
 		warnx("json_fmt_protected_rsa");
 	else
 		rc = 1;
 
+	RSA_free(r);
 	free(exp);
 	free(mod);
 	return rc;
@@ -232,8 +236,8 @@ op_sign_ec(char **prot, EVP_PKEY *pkey, const char *nonce, const char *url)
 
 	*prot = NULL;
 
-	if ((ec = EVP_PKEY_get0_EC_KEY(pkey)) == NULL)
-		warnx("EVP_PKEY_get0_EC_KEY");
+	if ((ec = EVP_PKEY_get1_EC_KEY(pkey)) == NULL)
+		warnx("EVP_PKEY_get1_EC_KEY");
 	else if ((X = BN_new()) == NULL)
 		warnx("BN_new");
 	else if ((Y = BN_new()) == NULL)
@@ -250,6 +254,7 @@ op_sign_ec(char **prot, EVP_PKEY *pkey, const char *nonce, const char *url)
 	else
 		rc = 1;
 
+	EC_KEY_free(ec);
 	BN_free(X);
 	BN_free(Y);
 	free(x);
@@ -266,7 +271,7 @@ op_sign(int fd, EVP_PKEY *pkey, enum acctop op)
 {
 	EVP_MD_CTX		*ctx = NULL;
 	const EVP_MD		*evp_md = NULL;
-	EC_KEY			*ec;
+	EC_KEY			*ec = NULL;
 	ECDSA_SIG		*ec_sig = NULL;
 	const BIGNUM		*ec_sig_r = NULL, *ec_sig_s = NULL;
 	int			 cc, rc = 0;
@@ -298,7 +303,7 @@ op_sign(int fd, EVP_PKEY *pkey, enum acctop op)
 		goto out;
 	}
 
-	switch (EVP_PKEY_type(pkey->type)) {
+	switch (COMPAT_OPENSSL_pkey_type(pkey)) {
 	case EVP_PKEY_RSA:
 		alg = "RS256";
 		evp_md = EVP_sha256();
@@ -319,7 +324,7 @@ op_sign(int fd, EVP_PKEY *pkey, enum acctop op)
 			goto out;
 		}
 	} else {
-		switch (EVP_PKEY_type(pkey->type)) {
+		switch (COMPAT_OPENSSL_pkey_type(pkey)) {
 		case EVP_PKEY_RSA:
 			if (!op_sign_rsa(&prot, pkey, nonce, url))
 				goto out;
@@ -374,7 +379,7 @@ op_sign(int fd, EVP_PKEY *pkey, enum acctop op)
 		goto out;
 	}
 
-	switch (EVP_PKEY_type(pkey->type)) {
+	switch (COMPAT_OPENSSL_pkey_type(pkey)) {
 	case EVP_PKEY_RSA:
 		if ((dig64 = base64buf_url((char *)dig, digsz)) == NULL) {
 			warnx("base64buf_url");
@@ -382,8 +387,8 @@ op_sign(int fd, EVP_PKEY *pkey, enum acctop op)
 		}
 		break;
 	case EVP_PKEY_EC:
-		if ((ec = EVP_PKEY_get0_EC_KEY(pkey)) == NULL) {
-			warnx("EVP_PKEY_get0_EC_KEY");
+		if ((ec = EVP_PKEY_get1_EC_KEY(pkey)) == NULL) {
+			warnx("EVP_PKEY_get1_EC_KEY");
 			goto out;
 		}
 		degree = EC_GROUP_get_degree(EC_KEY_get0_group(ec));
@@ -395,7 +400,12 @@ op_sign(int fd, EVP_PKEY *pkey, enum acctop op)
 			goto out;
 		}
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		ec_sig_r = ec_sig->r;
+		ec_sig_s = ec_sig->s;
+#else
 		ECDSA_SIG_get0(ec_sig, &ec_sig_r, &ec_sig_s);
+#endif
 
 		r_len = BN_num_bytes(ec_sig_r);
 		s_len = BN_num_bytes(ec_sig_s);
@@ -441,6 +451,8 @@ op_sign(int fd, EVP_PKEY *pkey, enum acctop op)
 	rc = 1;
 out:
 	EVP_MD_CTX_free(ctx);
+	ECDSA_SIG_free(ec_sig);
+	EC_KEY_free(ec);
 	free(pay);
 	free(sign);
 	free(pay64);
@@ -488,10 +500,12 @@ acctproc(int netsock, const char *acctkey, enum keytype keytype)
 
 	ERR_load_crypto_strings();
 
+#ifdef HAVE_PLEDGE
 	if (pledge("stdio", NULL) == -1) {
 		warn("pledge");
 		goto out;
 	}
+#endif
 
 	if (newacct) {
 		switch (keytype) {

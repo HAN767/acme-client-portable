@@ -22,7 +22,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <tls.h>
 
 #include "config.h"
 #include "http.h"
@@ -675,25 +674,31 @@ netproc(int kfd, int afd, int Cfd, int cfd, int dfd, int rfd,
 	memset(&paths, 0, sizeof(struct capaths));
 	memset(&c, 0, sizeof(struct conn));
 
+#ifdef HAVE_UNVEIL
 	if (unveil(tls_default_ca_cert_file(), "r") == -1) {
 		warn("unveil");
 		goto out;
 	}
+#endif
 
+#ifdef HAVE_PLEDGE
 	if (pledge("stdio inet rpath", NULL) == -1) {
 		warn("pledge");
 		goto out;
 	}
+#endif
 
 	if (http_init() == -1) {
 		warn("http_init");
 		goto out;
 	}
 
+#ifdef HAVE_PLEDGE
 	if (pledge("stdio inet", NULL) == -1) {
 		warn("pledge");
 		goto out;
 	}
+#endif
 
 	/*
 	 * Wait until the acctproc, keyproc, and revokeproc have started up and

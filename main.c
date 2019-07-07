@@ -79,9 +79,6 @@ main(int argc, char *argv[])
 			goto usage;
 		}
 
-	if (getuid() != 0)
-		errx(EXIT_FAILURE, "must be run as root");
-
 	/* parse config file */
 	if ((conf = parse_config(conffile, popts)) == NULL)
 		return EXIT_FAILURE;
@@ -356,8 +353,10 @@ main(int argc, char *argv[])
 
 	/* Jail: sandbox, file-system, user. */
 
+#ifdef HAVE_PLEDGE
 	if (pledge("stdio", NULL) == -1)
 		err(EXIT_FAILURE, "pledge");
+#endif
 
 	/*
 	 * Collect our subprocesses.

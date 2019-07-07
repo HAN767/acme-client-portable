@@ -29,10 +29,13 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tls.h>
 #include <unistd.h>
 
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 #include "config.h"
+#include "compat.h"
 #include "http.h"
 #include "extern.h"
 
@@ -60,12 +63,12 @@ struct	http {
 	struct source	   src;    /* endpoint (raw) host */
 	char		  *path;   /* path to request */
 	char		  *host;   /* name of endpoint host */
-	struct tls	  *ctx;    /* if TLS */
+	SSL		  *ssl;    /* if TLS */
 	writefp		   writer; /* write function */
 	readfp		   reader; /* read function */
 };
 
-struct tls_config *tlscfg;
+static SSL_CTX *ssl_ctx = NULL;
 
 static ssize_t
 dosysread(char *buf, size_t sz, const struct http *http)
@@ -94,13 +97,27 @@ dotlsread(char *buf, size_t sz, const struct http *http)
 {
 	ssize_t	 rc;
 
-	do {
-		rc = tls_read(http->ctx, buf, sz);
-	} while (rc == TLS_WANT_POLLIN || rc == TLS_WANT_POLLOUT);
+try_read:
+	rc = SSL_read(http->ssl, buf, sz);
+	if (rc <= 0) {
+		switch (SSL_get_error(http->ssl, rc)) {
+		case SSL_ERROR_ZERO_RETURN:
+			rc = 0;
+			break;
+		case SSL_ERROR_WANT_READ:
+		case SSL_ERROR_SYSCALL:
+			if (errno == EINTR || errno == EAGAIN) {
+				goto try_read;
+			}
+			/* Fall-through */
+		default:
+			break;
+		}
+	}
 
-	if (rc == -1)
-		warnx("%s: tls_read: %s", http->src.ip,
-		    tls_error(http->ctx));
+	if (rc == -1) {
+		ERR_print_errors_fp(stderr);
+	}
 	return rc;
 }
 
@@ -109,43 +126,76 @@ dotlswrite(const void *buf, size_t sz, const struct http *http)
 {
 	ssize_t	 rc;
 
-	do {
-		rc = tls_write(http->ctx, buf, sz);
-	} while (rc == TLS_WANT_POLLIN || rc == TLS_WANT_POLLOUT);
+try_write:
+	rc = SSL_write(http->ssl, buf, sz);
+	if (rc <= 0) {
+		switch (SSL_get_error(http->ssl, rc)) {
+		case SSL_ERROR_ZERO_RETURN:
+			rc = 0;
+			break;
+		case SSL_ERROR_WANT_READ:
+		case SSL_ERROR_SYSCALL:
+			if (errno == EINTR || errno == EAGAIN) {
+				goto try_write;
+			}
+			/* Fall-through */
+		default:
+			break;
+		}
+	}
 
-	if (rc == -1)
-		warnx("%s: tls_write: %s", http->src.ip,
-		    tls_error(http->ctx));
+	if (rc == -1) {
+		ERR_print_errors_fp(stderr);
+	}
 	return rc;
 }
 
 int
 http_init()
 {
-	if (tlscfg != NULL)
+	if (ssl_ctx != NULL)
 		return 0;
 
-	if (tls_init() == -1) {
-		warn("tls_init");
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	SSL_library_init();
+	SSL_load_error_strings();
+#endif
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	ssl_ctx = SSL_CTX_new(SSLv23_client_method());
+#else
+	ssl_ctx = SSL_CTX_new(TLS_client_method());
+#endif
+	if (ssl_ctx == NULL) {
+		warn("SSL_CTX_new");
 		goto err;
 	}
 
-	tlscfg = tls_config_new();
-	if (tlscfg == NULL) {
-		warn("tls_config_new");
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	const long blacklist_versions =   SSL_OP_NO_SSLv2 \
+	                                | SSL_OP_NO_SSLv3 \
+	                                | SSL_OP_NO_TLSv1 \
+	                                | SSL_OP_NO_TLSv1_1;
+	const long new_opts = SSL_CTX_set_options(ssl_ctx, blacklist_versions);
+	if ((new_opts & blacklist_versions) != blacklist_versions) {
+		warn("SSL_CTX_set_options");
 		goto err;
 	}
+#else
+	if (SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_2_VERSION) != 1) {
+		warn("SSL_CTX_set_min_proto_version");
+		goto err;
+	}
+#endif
 
-	if (tls_config_set_ca_file(tlscfg, tls_default_ca_cert_file()) == -1) {
-		warn("tls_config_set_ca_file: %s", tls_config_error(tlscfg));
-		goto err;
-	}
+	SSL_CTX_set_default_verify_paths(ssl_ctx);
+	SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);
 
 	return 0;
 
  err:
-	tls_config_free(tlscfg);
-	tlscfg = NULL;
+	SSL_CTX_free(ssl_ctx);
+	ssl_ctx = NULL;
 
 	return -1;
 }
@@ -189,17 +239,26 @@ http_disconnect(struct http *http)
 {
 	int rc;
 
-	if (http->ctx != NULL) {
+	if (http->ssl != NULL) {
+		char buf[256];
+
 		/* TLS connection. */
-		do {
-			rc = tls_close(http->ctx);
-		} while (rc == TLS_WANT_POLLIN || rc == TLS_WANT_POLLOUT);
+		rc = SSL_shutdown(http->ssl);
+		switch (rc) {
+		case 0:
+			rc = SSL_read(http->ssl, buf, sizeof(buf));
+			if (rc <= 0) {
+				ERR_print_errors_fp(stderr);
+			}
+			break;
+		case 1:
+			break;
+		default:
+			ERR_print_errors_fp(stderr);
+			break;
+		}
 
-		if (rc < 0)
-			warnx("%s: tls_close: %s", http->src.ip,
-			    tls_error(http->ctx));
-
-		tls_free(http->ctx);
+		SSL_free(http->ssl);
 	}
 	if (http->fd != -1) {
 		if (close(http->fd) == -1)
@@ -207,7 +266,7 @@ http_disconnect(struct http *http)
 	}
 
 	http->fd = -1;
-	http->ctx = NULL;
+	http->ssl = NULL;
 }
 
 void
@@ -312,18 +371,18 @@ again:
 	http->writer = dotlswrite;
 	http->reader = dotlsread;
 
-	if ((http->ctx = tls_client()) == NULL) {
-		warn("tls_client");
-		goto err;
-	} else if (tls_configure(http->ctx, tlscfg) == -1) {
-		warnx("%s: tls_configure: %s",
-			http->src.ip, tls_error(http->ctx));
+	if ((http->ssl = SSL_new(ssl_ctx)) == NULL) {
+		warn("SSL_new");
 		goto err;
 	}
 
-	if (tls_connect_socket(http->ctx, http->fd, http->host) != 0) {
-		warnx("%s: tls_connect_socket: %s, %s", http->src.ip,
-		    http->host, tls_error(http->ctx));
+	if (SSL_set_fd(http->ssl, http->fd) != 1) {
+		warn("SSL_set_fd");
+		goto err;
+	}
+
+	if (SSL_connect(http->ssl) != 1) {
+		ERR_print_errors_fp(stderr);
 		goto err;
 	}
 

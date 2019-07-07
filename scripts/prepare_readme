@@ -1,0 +1,8 @@
+#!/bin/sh
+set -xeu
+
+[ -f acctproc.c ]
+[ -f chngproc.c ]
+[ -f fileproc.c ]
+
+cat acme-client.1 | MANWIDTH=80 man /dev/stdin > README

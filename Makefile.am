@@ -9,6 +9,7 @@ AM_CFLAGS = \
 	-Wshadow \
 	-Wsign-compare \
 	-Wstrict-prototypes \
+	-Wundef \
 	-Wunused \
 	-flto \
 	@BSD_INCLUDES@ \
@@ -30,6 +31,7 @@ acme_client_SOURCES = \
 	dbg.c \
 	dnsproc.c \
 	fileproc.c \
+	http.c \
 	jsmn.c \
 	json.c \
 	key.c \

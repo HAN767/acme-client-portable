@@ -37,6 +37,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <bsd/stdlib.h>
+#include <bsd/sys/queue.h>
+
 #include "config.h"
 #include "parse.h"
 #include "extern.h"
@@ -599,12 +602,12 @@ top:
 			lungetc(c);
 			break;
 		}
-		val = symget(buf);
+		val = (u_char *)symget((char *)buf);
 		if (val == NULL) {
 			yyerror("macro '%s' not defined", buf);
 			return findeol();
 		}
-		p = val + strlen(val) - 1;
+		p = val + strlen((char *)val) - 1;
 		lungetc(DONE_EXPAND);
 		while (p >= val) {
 			lungetc(*p);
@@ -648,7 +651,7 @@ top:
 			}
 			*p++ = c;
 		}
-		yylval.v.string = strdup(buf);
+		yylval.v.string = strdup((char *)buf);
 		if (yylval.v.string == NULL)
 			err(EXIT_FAILURE, "%s", __func__);
 		return STRING;
@@ -672,7 +675,7 @@ top:
 			const char *errstr = NULL;
 
 			*p = '\0';
-			yylval.v.number = strtonum(buf, LLONG_MIN,
+			yylval.v.number = strtonum((char *)buf, LLONG_MIN,
 			    LLONG_MAX, &errstr);
 			if (errstr != NULL) {
 				yyerror("\"%s\" invalid number: %s",
@@ -706,8 +709,8 @@ nodigits:
 		} while ((c = lgetc(0)) != EOF && (allowed_in_string(c)));
 		lungetc(c);
 		*p = '\0';
-		if ((token = lookup(buf)) == STRING) {
-			if ((yylval.v.string = strdup(buf)) == NULL)
+		if ((token = lookup((char *)buf)) == STRING) {
+			if ((yylval.v.string = strdup((char *)buf)) == NULL)
 				err(EXIT_FAILURE, "%s", __func__);
 		}
 		return token;

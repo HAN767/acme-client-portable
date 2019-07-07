@@ -41,10 +41,12 @@ certproc(int netsock, int filesock)
 	enum certop	 op;
 	long		 lval;
 
+#ifdef HAVE_PLEDGE
 	if (pledge("stdio", NULL) == -1) {
 		warn("pledge");
 		goto out;
 	}
+#endif
 
 	/* Read what the netproc wants us to do. */
 

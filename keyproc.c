@@ -29,7 +29,10 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
+#include <bsd/string.h>
+
 #include "config.h"
+#include "compat.h"
 #include "extern.h"
 #include "key.h"
 
@@ -112,10 +115,12 @@ keyproc(int netsock, const char *keyfile, const char **alts, size_t altsz,
 
 	ERR_load_crypto_strings();
 
+#ifdef HAVE_PLEDGE
 	if (pledge("stdio", NULL) == -1) {
 		warn("pledge");
 		goto out;
 	}
+#endif
 
 	if (newkey) {
 		switch (keytype) {

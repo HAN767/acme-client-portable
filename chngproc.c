@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #include "config.h"
+#include "compat.h"
 #include "extern.h"
 
 int
@@ -38,15 +39,19 @@ chngproc(int netsock, const char *root)
 	void		 *pp;
 
 
+#ifdef HAVE_UNVEIL
 	if (unveil(root, "wc") == -1) {
 		warn("unveil");
 		goto out;
 	}
+#endif
 
+#ifdef HAVE_PLEDGE
 	if (pledge("stdio cpath wpath", NULL) == -1) {
 		warn("pledge");
 		goto out;
 	}
+#endif
 
 	/*
 	 * Loop while we wait to get a thumbprint and token.
