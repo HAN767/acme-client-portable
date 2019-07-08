@@ -1,0 +1,10 @@
+0.2.0
+=====
+
+* Use ACME protocol v2
+* Do not require root to run
+
+0.1.0
+=====
+
+* Initial port using ACME protocol v1
