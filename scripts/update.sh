@@ -19,16 +19,11 @@ git checkout openbsd
 
 cvs up -PAd
 
-backup_regex='^\?\? \.#.*\.[0-9]+\.[0-9]+$'
-if git status -z --untracked-files --porcelain | egrep -z "$backup_regex"; then
-	git status -z --untracked-files --porcelain \
-		| egrep -z "$backup_regex" \
-		| cut -zb4- \
-		| xargs -0rx rm -v --
-fi
-
-if [ -n "$(git status --porcelain)" ]; then
+if [ -n "$(git status -z --porcelain | egrep -zv '^?? CVS/Entries$')" ]; then
 	echo "Some changes present, commiting."
 	git add .
 	git commit -m "Update from openbsd ($(date -u '+%Y-%d-%m %H:%M:%S') UTC)"
+else
+	echo "No new changes detected"
+	git checkout -- CVS/Entries
 fi
