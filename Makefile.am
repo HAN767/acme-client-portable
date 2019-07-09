@@ -28,16 +28,22 @@ acme_client_SOURCES = \
 	certproc.c \
 	chngproc.c \
 	compat.c \
+	compat.h \
 	dbg.c \
 	dnsproc.c \
+	extern.h \
 	fileproc.c \
 	http.c \
+	http.h \
 	jsmn.c \
+	jsmn.h \
 	json.c \
 	key.c \
+	key.h \
 	keyproc.c \
 	main.c \
 	netproc.c \
+	parse.h \
 	parse.y \
 	revokeproc.c \
 	util.c
