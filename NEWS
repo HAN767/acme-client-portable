@@ -1,3 +1,8 @@
+0.2.2
+=====
+
+* Provide User-Agent header as RFC 8555 mandates
+
 0.2.1
 =====
 
