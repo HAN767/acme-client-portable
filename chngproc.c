@@ -39,14 +39,14 @@ chngproc(int netsock, const char *root)
 	void		 *pp;
 
 
-#ifdef HAVE_UNVEIL
+#if HAVE_UNVEIL
 	if (unveil(root, "wc") == -1) {
 		warn("unveil");
 		goto out;
 	}
 #endif
 
-#ifdef HAVE_PLEDGE
+#if HAVE_PLEDGE
 	if (pledge("stdio cpath wpath", NULL) == -1) {
 		warn("pledge");
 		goto out;

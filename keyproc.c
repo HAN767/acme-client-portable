@@ -115,7 +115,7 @@ keyproc(int netsock, const char *keyfile, const char **alts, size_t altsz,
 
 	ERR_load_crypto_strings();
 
-#ifdef HAVE_PLEDGE
+#if HAVE_PLEDGE
 	if (pledge("stdio", NULL) == -1) {
 		warn("pledge");
 		goto out;

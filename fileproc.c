@@ -87,7 +87,7 @@ fileproc(int certsock, const char *certdir, const char *certfile, const char
 	long		 lval;
 	enum fileop	 op;
 
-#ifdef HAVE_UNVEIL
+#if HAVE_UNVEIL
 	if (unveil(certdir, "rwc") == -1) {
 		warn("unveil");
 		goto out;
@@ -100,7 +100,7 @@ fileproc(int certsock, const char *certdir, const char *certfile, const char
 	 * rpath and cpath for rename, wpath and cpath for
 	 * writing to the temporary. fattr for fchmod.
 	 */
-#ifdef HAVE_PLEDGE
+#if HAVE_PLEDGE
 	if (pledge("stdio cpath wpath rpath fattr", NULL) == -1) {
 		warn("pledge");
 		goto out;

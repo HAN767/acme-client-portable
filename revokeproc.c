@@ -124,7 +124,7 @@ revokeproc(int fd, const char *certfile, int force,
 
 	ERR_load_crypto_strings();
 
-#ifdef HAVE_PLEDGE
+#if HAVE_PLEDGE
 	if (pledge("stdio", NULL) == -1) {
 		warn("pledge");
 		goto out;
