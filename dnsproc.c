@@ -121,7 +121,7 @@ dnsproc(int nfd)
 	size_t		 i;
 	enum dnsop	 op;
 
-#if HAVE_PLEDGE
+#if defined(HAVE_PLEDGE) && HAVE_PLEDGE != 0
 	if (pledge("stdio dns", NULL) == -1) {
 		warn("pledge");
 		goto out;

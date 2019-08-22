@@ -353,7 +353,7 @@ main(int argc, char *argv[])
 
 	/* Jail: sandbox, file-system, user. */
 
-#if HAVE_PLEDGE
+#if defined(HAVE_PLEDGE) && HAVE_PLEDGE != 0
 	if (pledge("stdio", NULL) == -1)
 		err(EXIT_FAILURE, "pledge");
 #endif

@@ -500,7 +500,7 @@ acctproc(int netsock, const char *acctkey, enum keytype keytype)
 
 	ERR_load_crypto_strings();
 
-#if HAVE_PLEDGE
+#if defined(HAVE_PLEDGE) && HAVE_PLEDGE != 0
 	if (pledge("stdio", NULL) == -1) {
 		warn("pledge");
 		goto out;

@@ -41,7 +41,7 @@ certproc(int netsock, int filesock)
 	enum certop	 op;
 	long		 lval;
 
-#if HAVE_PLEDGE
+#if defined(HAVE_PLEDGE) && HAVE_PLEDGE != 0
 	if (pledge("stdio", NULL) == -1) {
 		warn("pledge");
 		goto out;

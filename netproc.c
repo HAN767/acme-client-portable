@@ -674,14 +674,14 @@ netproc(int kfd, int afd, int Cfd, int cfd, int dfd, int rfd,
 	memset(&paths, 0, sizeof(struct capaths));
 	memset(&c, 0, sizeof(struct conn));
 
-#if HAVE_UNVEIL
+#if defined(HAVE_UNVEIL) && HAVE_UNVEIL != 0
 	if (unveil(tls_default_ca_cert_file(), "r") == -1) {
 		warn("unveil");
 		goto out;
 	}
 #endif
 
-#if HAVE_PLEDGE
+#if defined(HAVE_PLEDGE) && HAVE_PLEDGE != 0
 	if (pledge("stdio inet rpath", NULL) == -1) {
 		warn("pledge");
 		goto out;
@@ -693,7 +693,7 @@ netproc(int kfd, int afd, int Cfd, int cfd, int dfd, int rfd,
 		goto out;
 	}
 
-#if HAVE_PLEDGE
+#if defined(HAVE_PLEDGE) && HAVE_PLEDGE != 0
 	if (pledge("stdio inet", NULL) == -1) {
 		warn("pledge");
 		goto out;
